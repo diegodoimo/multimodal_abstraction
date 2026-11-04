@@ -60,12 +60,11 @@ multimodal_abstraction/
 └── requirements.txt
 ```
 
-The runs create `results/` (the outputs the figure scripts read) and `representations/` (cached
-activations).
+The [runs](#running-the-experiments) create `results/` and `representations/` (saved activations). The scripts in  `figures/` read the files in `results/` to generate the paper plots. 
 
 ## Setup
 
-flash-attn is optional and affects only InternVL2-8B: without flash-attention, InternVL2-8B runs with eager attention instead (1.5 to 2 times slower). Every other model uses PyTorch's sdpa attention, or eager in the interventions that edit the attention mask, whether flash-attn is installed or not.
+flash-attn is optional and affects only InternVL2-8B. Without flash-attention, InternVL2-8B runs with eager attention (1.5-2 times slower). Every other model uses PyTorch's sdpa attention, or eager attention in the interventions that edit the attention mask, whether flash-attn is installed or not.
 
 ```bash
 bash setup_env.sh                    # conda env in ./env: Python 3.12, torch 2.8 (CUDA 12.8), flash-attn 2.8.3,
@@ -78,19 +77,10 @@ When installing by hand, follow `setup_env.sh` and leave out its `pip install fl
 
 Models and datasets are downloaded from the Hugging Face Hub into `HF_HOME` (set it, together with
 the other paths, at the top of `slurm/env.sh`); they are listed under [Models and data](#models-and-data).
-Three experiments need data that is not on the Hub:
 
-```bash
-bash scripts/probing/download_senteval.sh          # SentEval probing tasks (SOMO, CoordInv) -> data/probing/
-bash scripts/finetuning/download_aro.sh            # ARO annotations + COCO / Flickr30k images -> ARO_DATA_ROOT
-bash scripts/finetuning/download_sugarcrepe.sh     # SugarCrepe annotations + COCO val2017 -> SUGARCREPE_DATA_ROOT
-```
-
-and the COCO retrieval analysis needs the MSCOCO `train2014` images (`COCO_TRAIN2014` in `slurm/env.sh`).
 MMBench is scored by an LLM judge: export `OPENAI_API_KEY`, `OPENAI_API_URL` and `MODEL_VERSION`
 (any OpenAI-compatible endpoint) before running the benchmark or intervention jobs that include it.
-The judge is only called for answers that are not a plain option letter; the calls are made
-concurrently (`MMBENCH_JUDGE_WORKERS`, default 8), which matters for models that answer in sentences.
+The judge is only called for answers that are not a plain option letter.
 
 ## Models and data
 
@@ -108,60 +98,32 @@ used for the verification of this repository.
 | Pixtral-12B (Fig. 6 reference model) | `mistral-community/pixtral-12b` (c2756cb) | transformers 4.57.6 `LlavaForConditionalGeneration`, bf16 |
 | Llama-3.2-90B-Vision-Instruct (appendix) | `meta-llama/Llama-3.2-90B-Vision-Instruct` | transformers 4.57.6 `MllamaForConditionalGeneration`, bf16, 3 GPUs |
 
-Datasets on the Hub: the captioned VQA sets of the representation experiments
+
+The localized visual instruction tuning of the models of Sec. 4 (`lbasile/llava_7b_6_17`, `lbasile/llava_7b_6_17_complementary`,
+`lbasile/LLaVA-OneVision-1.5-4B-8-26`, `lbasile/LLaVA-OneVision-1.5-4B-8-26-comp`) and the fully fine-tuned ones (`lbasile/llava_7b` and `lbasile/LLaVA-OneVision-1.5-4B`) follow the official LLaVA-1.5 and LLaVA-OneVision-1.5 recipes and are not part of this
+repository.
+
+
+### Datastes
+ 
+Datasets on the Hub: the captioned VQA sets for the representation experiments
 (`l11p/VQAv2-COCO-restval-ICQ`, `l11p/COCOQA-restval-ICQA`, `l11p/GQA-val-balanced-noyesno-captioned`,
 `l11p/MMBench_EN-dev-captioned`, `l11p/SEED-Bench-images-captioned`; the fixed VQAv2 and COCO-QA
 splits are in `data/splits/`), the image-classification sets of the label overlap (`timm/mini-imagenet`,
 `ethz/food101`, `tanganke/sun397`, `flwrlabs/caltech101`, `dpdl-benchmark/oxford_flowers102`,
 `torch-uncertainty/Places365`, `tanganke/dtd`) and the benchmarks, loaded by lmms-eval and lm-eval.
-SentEval, ARO, SugarCrepe and COCO train2014 are not on the Hub (Setup).
-
-## Figures
-
-All plot scripts run without arguments (`python figures/<name>.py`) and can be executed interactively,
-once the experiments they plot have been run (next section).
-
-| Paper | Script | Output in `figures/out/` | Reads (under `results/`) | Produced by |
-| --- | --- | --- | --- | --- |
-| Fig. 2; appendix interventions (multimodal) | `fig2_interventions.py` | `interventions/multimodal/*.pdf` | `interventions/multimodal/` | `slurm/interventions_multimodal.sbatch` |
-| Fig. 3; appendix label overlap, linear probe, logit lens | `fig3_probing.py` | `probing/label_overlap_and_logit_lens.pdf`, `probing/{label_overlap_*,linear_probe_mc,logit_lens_*}.pdf` | `label_overlap/`, `logit_lens/` | `slurm/label_overlap.sbatch`, `slurm/logit_lens.sbatch` |
-| Fig. 4; appendix imbalance planes, linear CKA, neighborhood overlap, Llama-90B plane | `fig4_geometry.py` | `geometry/*/<model>.pdf`, `llama90b/information_imbalance.pdf` | `imbalance_planes/` (imbalance), `similarity/` (CKA, overlap, Llama-90B) | `slurm/similarity_multimodal.sbatch` (extraction, CKA, overlap), then `slurm/imbalance_planes.sbatch`; `slurm/llama90b.sbatch` (JOB=similarity) |
-| Fig. 5 table; appendix radar | `fig5_localized_finetuning.py` | LaTeX table on stdout, `finetuning/radar_localized_ft.pdf` | `benchmarks/` | `slurm/benchmarks.sbatch`, `slurm/compositionality.sbatch` |
-| Fig. 6; appendix Llama-90B visual reliance | `fig6_visual_reliance.py` | `finetuning/visual_reliance_correlation.pdf`, `llama90b/visual_reliance_correlation.pdf` | `benchmarks/`, `interventions/llama90b/` | same + `slurm/llama90b.sbatch` (JOB=window) |
-| appendix interventions (text) | `app_interventions_text.py` | `interventions/text/*.pdf` | `interventions/text/` | `slurm/interventions_text.sbatch` |
-| appendix text benchmarks; text benchmarks after localized fine-tuning | `app_text_benchmarks.py` | LaTeX tables on stdout | `interventions/text/` (full-model point of the sweeps), `text_benchmarks/` | `slurm/interventions_text.sbatch`, `slurm/text_benchmarks.sbatch` |
-| appendix COCO retrieval | `app_retrieval.py` | `probing/retrieval_coco.pdf` | `retrieval/` | `slurm/coco_retrieval.sbatch` |
-| appendix linguistic probing | `app_linguistic_probing.py` | `probing/linguistic_probing.pdf` | `linguistic_probing/` | `slurm/linguistic_probing.sbatch` |
-| appendix Llama-90B ablations | `app_llama90b_interventions.py` | `llama90b/ablations_cross_modal.pdf` | `interventions/llama90b/` | `slurm/llama90b.sbatch` (JOB=ablation_input / ablation_output) |
-
-Fig. 1 is a drawing (`figures/fig1_abstraction.png`) and has no script. The fine-tuned checkpoints of
-Sec. 4 (`lbasile/llava_7b_6_17`, `lbasile/llava_7b_6_17_complementary`,
-`lbasile/LLaVA-OneVision-1.5-4B-8-26`, `lbasile/LLaVA-OneVision-1.5-4B-8-26-comp`, and the fully
-fine-tuned references `lbasile/llava_7b` and `lbasile/LLaVA-OneVision-1.5-4B`) are evaluated here; the
-training itself follows the official LLaVA-1.5 and LLaVA-OneVision-1.5 recipes and is not part of this
-repository.
-
-## Compute and disk per figure
-
-GPU-hours in H100 units (A100 measurements divided by 1.7 for generation and extraction, by 1.2 for
-lm-eval and the probes; a GPU-hour on three GPUs counts three times). Disk is the largest space the
-experiments of a row need at the same time: checkpoints, datasets (the Hub download plus the copy the
-`datasets` library writes) and cached activations. The figures can be reproduced one after the other,
-so the total disk is the largest row, not the sum.
-
-| Figure | Experiments | H100 GPU-hours | Disk, GB |
-| --- | --- | --- | --- |
-| Fig. 2 and appendix interventions | 24 multimodal intervention sweeps (LLaVA-7B, OneVision-4B, InternVL2-8B; LLaVA-13B, OneVision-8B, Cambrian-8B in the appendix; layer skip and attention knockout; progressive and sliding) of 6 tasks x 2,000 samples per window; 12 text-only sweeps (6 models, 6 lm-eval tasks) | about 540 | about 350 |
-| Fig. 3 and appendix | label overlap (6 models, 7 datasets), linear probes and logit lens (6 models) | about 10 | about 245 |
-| Fig. 4 and appendix | information-imbalance planes, linear CKA, neighborhood overlap: 12 checkpoints x 5 datasets; the activations of up to 10,000 prompts per dataset are cached and all three measures use the first 3,000 | about 15 | about 475 |
-| Fig. 5 and appendix radar | 6 checkpoints: 18 benchmarks at 5,000 samples, COCO and Flickr30k captioning, ARO, SugarCrepe | about 17 | about 330 |
-| Fig. 6 | 4 reference models with and without image: 16 benchmarks at 5,000 samples, ARO, SugarCrepe (plus the Fig. 5 runs) | about 42 | about 340 |
-| Appendix | COCO retrieval about 7 h, linguistic probing about 3 h, text benchmarks after localized fine-tuning about 2 h, Llama-3.2-90B about 315 h | about 325 | about 470 (Llama-90B; COCO retrieval about 225) |
-| Total | | about 950 (630 without Llama-90B) | about 475 at most |
 
 
-Most of the time is autoregressive generation with lmms-eval at batch size 1; the intervention experiments of OneVision (eager attention at full image resolution) take 30 to 45 hours each. MMBench answers that are not a plain option letter go to the LLM judge, whose endpoint can dominate the time of the models that answer in sentences (OneVision-1.5-Instruct, InternVL2). About two thirds of the dataset space is the
-`datasets` copy, which can be deleted after a run.
+SentEval, ARO, SugarCrepe, and COCO train2014 are not on the Hub:
+
+```bash
+bash scripts/probing/download_senteval.sh          # SentEval probing tasks (SOMO, CoordInv) -> data/probing/
+bash scripts/finetuning/download_aro.sh            # ARO annotations + COCO / Flickr30k images -> ARO_DATA_ROOT
+bash scripts/finetuning/download_sugarcrepe.sh     # SugarCrepe annotations + COCO val2017 -> SUGARCREPE_DATA_ROOT
+```
+
+and the COCO retrieval analysis needs the MSCOCO `train2014` images (`COCO_TRAIN2014` in `slurm/env.sh`).
+
 
 ## Running the experiments
 
@@ -183,12 +145,55 @@ sbatch --export=ALL,MODEL=OpenGVLab/InternVL2-8B,NO_IMAGE=1 slurm/benchmarks.sba
 sbatch --export=ALL,JOB=similarity slurm/llama90b.sbatch
 ```
 
-All text-only sweeps apply the model's chat template. `slurm/label_overlap.sbatch` accepts `DATASETS="..."` to run a subset of the
-seven classification datasets. The header of each launcher documents its variables; the SLURM account, partition and GPU type in
+`slurm/label_overlap.sbatch` accepts `DATASETS="..."` to run a subset of the seven classification datasets. 
+The header of each launcher documents its variables; the SLURM account, partition, and GPU type in
 the `#SBATCH` lines are those of our cluster. Outputs are written under `results/` with the layout
 the figure scripts expect, so re-running an experiment and re-running its figure script is enough.
 Intermediate activations (about 215 GB for the similarity experiments, 76 GB for the COCO retrieval)
-are cached under `representations/`.
+are saved in `representations/`.
+
+## Figures
+
+All plot scripts run without arguments (`python figures/<name>.py`) and can be executed interactively
+once the experiments they plot have been run.
+
+| Paper | Script | Produced by |
+| --- | --- | --- |
+| Fig. 2; appendix interventions (multimodal) | `fig2_interventions.py` | `slurm/interventions_multimodal.sbatch` |
+| Fig. 3; appendix label overlap, linear probe, logit lens | `fig3_probing.py` | `slurm/label_overlap.sbatch`, `slurm/logit_lens.sbatch` |
+| Fig. 4; appendix imbalance planes, linear CKA, neighborhood overlap, Llama-90B plane | `fig4_geometry.py` | `slurm/similarity_multimodal.sbatch` (extraction, CKA, overlap), then `slurm/imbalance_planes.sbatch`; `slurm/llama90b.sbatch` |
+| Fig. 5 table; appendix radar | `fig5_localized_finetuning.py` | `slurm/benchmarks.sbatch`, `slurm/compositionality.sbatch` |
+| Fig. 6; appendix Llama-90B visual reliance | `fig6_visual_reliance.py` | same + `slurm/llama90b.sbatch` |
+| appendix interventions (text) | `app_interventions_text.py` | `slurm/interventions_text.sbatch` |
+| appendix text benchmarks; text benchmarks after localized fine-tuning | `app_text_benchmarks.py` | `slurm/interventions_text.sbatch`, `slurm/text_benchmarks.sbatch` |
+| appendix COCO retrieval | `app_retrieval.py` | `slurm/coco_retrieval.sbatch` |
+| appendix linguistic probing | `app_linguistic_probing.py` | `slurm/linguistic_probing.sbatch` |
+| appendix Llama-90B ablations | `app_llama90b_interventions.py` | `slurm/llama90b.sbatch` |
+
+
+## Compute and disk per figure
+
+GPU-hours in H100 units (A100 measurements divided by 1.7 for generation and extraction, by 1.2 for
+lm-eval and the probes; a GPU-hour on three GPUs counts three times). Disk is the largest space the
+experiments of a row need at the same time: checkpoints, datasets (the Hub download plus the copy the
+`datasets` library writes) and cached activations. The figures can be reproduced one after the other,
+so the total disk is the largest row, not the sum.
+
+| Figure | Experiments | H100 GPU-hours | Disk, GB |
+| --- | --- | --- | --- |
+| Fig. 2 and appendix interventions | 24 multimodal intervention sweeps (LLaVA-7B, OneVision-4B, InternVL2-8B; LLaVA-13B, OneVision-8B, Cambrian-8B in the appendix; layer skip and attention knockout; progressive and sliding) of 6 tasks x 2,000 samples per window; 12 text-only sweeps (6 models, 6 lm-eval tasks) | about 540 | about 350 |
+| Fig. 3 and appendix | label overlap (6 models, 7 datasets), linear probes and logit lens (6 models) | about 10 | about 245 |
+| Fig. 4 and appendix | information-imbalance planes, linear CKA, neighborhood overlap: 12 checkpoints x 5 datasets; the activations of up to 10,000 prompts per dataset are cached, and all three measures use the first 3,000 | about 15 | about 475 |
+| Fig. 5 and appendix radar | 6 checkpoints: 18 benchmarks at 5,000 samples, COCO and Flickr30k captioning, ARO, SugarCrepe | about 17 | about 330 |
+| Fig. 6 | 4 reference models with and without image: 16 benchmarks at 5,000 samples, ARO, SugarCrepe (plus the Fig. 5 runs) | about 42 | about 340 |
+| Appendix | COCO retrieval about 7 h, linguistic probing about 3 h, text benchmarks after localized fine-tuning about 2 h, Llama-3.2-90B about 315 h | about 325 | about 470 (Llama-90B; COCO retrieval about 225) |
+| Total | | about 950 (630 without Llama-90B) | about 475 at most |
+
+
+Most of the time is autoregressive generation with lmms-eval at batch size 1; OneVision's intervention experiments (eager attention at full image resolution) take 30 to 45 hours each. MMBench answers that are not a plain option letter go to the LLM judge, whose endpoint can dominate the time of the models that answer in sentences (OneVision-1.5-Instruct, InternVL2). About two-thirds of the dataset space is the
+`datasets` copy, which can be deleted after a run.
+
+
 
 ## Citation
 
