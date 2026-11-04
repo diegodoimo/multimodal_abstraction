@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+figures/out/
+slurm/logs/
+/representations/
+/env/
+results/benchmarks/*/*/*_responses*.json
+figures/out_png/
+# lmms-eval MMBench submission files, rewritten on every run
+/tmp/
+# internal reproducibility report and experiment outputs: not part of the public repository
+REPORT.md
+/results/
+# downloaded by scripts/probing/download_senteval.sh and scripts/finetuning/download_aro.sh
+data/probing/*.txt
+third_party/vision-language-models-are-bows/*.json
