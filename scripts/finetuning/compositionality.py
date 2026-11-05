@@ -1,4 +1,4 @@
-"""ARO and SugarCrepe compositionality benchmarks (Fig. 5 table, Fig. 6 and the radar appendix).
+"""ARO and SugarCrepe compositionality benchmarks (Fig. 5 table and sliding-window plot, Fig. 6 and the radar appendix).
 
 Each sample is a multiple-choice question (which caption describes the image, options in an order
 shuffled with a fixed seed per sample); the answer is the option letter with the highest logit at the

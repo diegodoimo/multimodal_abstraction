@@ -9,7 +9,7 @@
 #SBATCH --gres=gpu:H100:1
 #SBATCH --job-name=compositionality
 #SBATCH --output=slurm/logs/%x-%j.out
-# ARO and SugarCrepe compositionality benchmarks (Fig. 5 table, Fig. 6 and the radar appendix).
+# ARO and SugarCrepe compositionality benchmarks (Fig. 5 table and sliding-window plot, Fig. 6 and the radar appendix).
 # Data: bash scripts/finetuning/download_aro.sh and bash scripts/finetuning/download_sugarcrepe.sh (see README).
 #
 #   sbatch --export=ALL,MODEL=lbasile/llava_7b_6_17 slurm/compositionality.sbatch

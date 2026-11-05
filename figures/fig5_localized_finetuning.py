@@ -1,4 +1,4 @@
-"""Figure 5 (table of localized fine-tuning results) and the appendix radar plot.
+"""Figure 5 (table of localized fine-tuning results), the sliding-window plot and the appendix radar plot.
 
 Benchmark scores are read from results/benchmarks/<model>/... (see fig6_visual_reliance.py for the layout).
 For each fine-tuning variant the score is divided by the score of the fully fine-tuned model:
@@ -6,7 +6,10 @@ For each fine-tuning variant the score is divided by the score of the fully fine
   * prints the LaTeX table of Fig. 5 (averages over multiple-choice VQA, open-ended VQA,
     compositional and captioning benchmarks),
   * writes figures/out/finetuning/radar_localized_ft.pdf (per-benchmark normalized scores of the
-    abstraction-layer and complementary fine-tuning runs of LLaVA-7B and OneVision-4B).
+    abstraction-layer and complementary fine-tuning runs of LLaVA-7B and OneVision-4B),
+  * writes figures/out/finetuning/sliding_window.pdf (overall normalized score of the runs that fine-tune
+    8 consecutive layers, moved by 4 layers at a time, against the normalized depth of the window centre;
+    dashed lines bound the abstraction region of each model).
 
 Run: python figures/fig5_localized_finetuning.py
 """
@@ -14,7 +17,10 @@ Run: python figures/fig5_localized_finetuning.py
 from math import pi
 
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
 
+from fig3_probing import MODELS as PROBING_MODELS, STYLE as PROBING_STYLE
 from fig6_visual_reliance import BENCHMARKS, STYLE, score
 from savefig import save
 
@@ -26,6 +32,14 @@ MODELS = {
     "OneVision-4B": ("LLaVA-OneVision-1.5-4B", "LLaVA-OneVision-1.5-4B-8-26", "LLaVA-OneVision-1.5-4B-8-26-comp", ("$[8, 25]$", "$[8, 25]^C$")),
 }
 CATEGORIES = {"mc": "MC VQA", "oe": "OE VQA", "comp": "Compositional", "cap": "Captioning"}
+
+# title -> (fully fine-tuned reference, run name from first and one-past-last trained layer, fig3_probing model key).
+# Each run fine-tunes WINDOW consecutive layers (lbasile/llava_7b_0_8, lbasile/llava_7b_4_12, ...).
+SLIDING = {
+    "LLaVA-7B":     ("llava_7b", "llava_7b_{}_{}", "llava_7b"),
+    "OneVision-4B": ("LLaVA-OneVision-1.5-4B", "LLaVA-OneVision-1.5-4B-{}-{}", "onevision_4b"),
+}
+WINDOW, STRIDE = 8, 4
 
 
 def normalized_scores(model, base):
@@ -97,6 +111,36 @@ def radar():
         plt.close(fig)
 
 
+def sliding_window():
+    with plt.rc_context(PROBING_STYLE):
+        fig, ax = plt.subplots(figsize=(5.5, 3.4))
+        for title, (base, run, key) in SLIDING.items():
+            _, _, n, (lo, hi), color = PROBING_MODELS[key]
+            centers, overall = [], []
+            for s in range(0, n - WINDOW + 1, STRIDE):
+                norm = normalized_scores(run.format(s, s + WINDOW), base)
+                if norm:
+                    centers.append((s + WINDOW / 2) / n)
+                    overall.append(100 * sum(norm.values()) / len(norm))
+            ax.plot(centers, overall, color=color, marker="o", markersize=5, linewidth=2)
+            # the abstraction region is numbered like the fine-tuned layers (llava_7b_6_17 trains [6, 16])
+            for x in (lo, hi + 1):
+                ax.axvline(x / n, color=color, linestyle="--", linewidth=1.0, zorder=1)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(84, 100)
+        ax.set_xlabel("Normalized depth")
+        ax.set_ylabel("Normalized performance (%)")
+        ax.set_axisbelow(True)
+        ax.grid(True, alpha=0.3)
+        handles = [Patch(facecolor=PROBING_MODELS[key][4], label=title) for title, (_, _, key) in SLIDING.items()]
+        handles.append(Line2D([0], [0], color="0.4", linestyle="--", linewidth=1.0, label="Abstraction phase boundary"))
+        ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=3, frameon=False,
+                  columnspacing=1.0, handlelength=1.6)
+        save(fig, "finetuning/sliding_window.pdf")
+        plt.close(fig)
+
+
 if __name__ == "__main__":
     print_table()
     radar()
+    sliding_window()

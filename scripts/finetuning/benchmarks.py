@@ -1,4 +1,4 @@
-"""Run one lmms-eval benchmark for one model (Fig. 5 table, Fig. 6 and the radar appendix).
+"""Run one lmms-eval benchmark for one model (Fig. 5 table and sliding-window plot, Fig. 6 and the radar appendix).
 
 The lmms-eval wrapper is chosen from the model name. --no-image evaluates the same prompts with the
 image tokens masked at every layer (image-reliance baseline, utils/models/<family>/patch_<family>_eval.py).

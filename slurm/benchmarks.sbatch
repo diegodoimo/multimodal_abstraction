@@ -9,7 +9,7 @@
 #SBATCH --gres=gpu:H100:1
 #SBATCH --job-name=benchmarks
 #SBATCH --output=slurm/logs/%x-%j.out
-# lmms-eval benchmarks of one model (Fig. 5 table, Fig. 6 and the radar appendix).
+# lmms-eval benchmarks of one model (Fig. 5 table and sliding-window plot, Fig. 6 and the radar appendix).
 #
 #   sbatch --export=ALL,MODEL=lbasile/llava_7b_6_17 slurm/benchmarks.sbatch
 #   NO_IMAGE=1 : evaluate the same prompts without the image (image-reliance baselines)

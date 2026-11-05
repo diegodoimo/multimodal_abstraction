@@ -20,7 +20,6 @@ representation geometry, benchmarks of the localized fine-tuning) and one plot s
 - [Setup](#setup)
 - [Models and data](#models-and-data)
 - [Figures](#figures)
-- [Compute and disk per figure](#compute-and-disk-per-figure)
 - [Running the experiments](#running-the-experiments)
 - [Citation](#citation)
 - [License](#license)
@@ -91,8 +90,8 @@ used for the verification of this repository.
 
 | Model | Checkpoints (revision) | Implementation |
 | --- | --- | --- |
-| LLaVA-1.5 7B / 13B | `lbasile/llava_7b` (393f5c3), `lbasile/llava_13b` (fc68464): LLaVA-1.5 trained with the official recipe from Vicuna-v1.5; fine-tuned `lbasile/llava_7b_6_17` (8a0b714), `lbasile/llava_7b_6_17_complementary` (fcff58d); pre-trained connector + LLM `l11p/llava-v1.5-7b-pretrained-lbasile` (b75c6da), `l11p/llava-v1.5-13b-pretrained-lbasile` (0782b79) | transformers 4.57.6 `LlavaForConditionalGeneration`, bf16 |
-| LLaVA-OneVision-1.5 4B / 8B | `lmms-lab/LLaVA-OneVision-1.5-4B-Instruct` (ae6819d), `-4B-Base` (9724845), `-8B-Instruct` (e137910), `-8B-Base` (0ee4560); fine-tuned `lbasile/LLaVA-OneVision-1.5-4B` (c52d609), `lbasile/LLaVA-OneVision-1.5-4B-8-26` (372071f), `lbasile/LLaVA-OneVision-1.5-4B-8-26-comp` (ffdfb3c) | the checkpoints' remote code `LLaVAOneVision1_5_ForConditionalGeneration` (`trust_remote_code`), bf16; the copies shipped with the checkpoints differ only in an import and two variable definitions |
+| LLaVA-1.5 7B / 13B | `lbasile/llava_7b` (393f5c3), `lbasile/llava_13b` (fc68464): LLaVA-1.5 trained with the official recipe from Vicuna-v1.5; fine-tuned `lbasile/llava_7b_6_17` (8a0b714), `lbasile/llava_7b_6_17_complementary` (fcff58d); sliding-window fine-tuned `lbasile/llava_7b_0_8` (a0be08d), `_4_12` (9506665), `_8_16` (b8184ac), `_12_20` (88c4551), `_16_24` (370867e), `_20_28` (f9c697b), `_24_32` (7d2a79c); pre-trained connector + LLM `l11p/llava-v1.5-7b-pretrained-lbasile` (b75c6da), `l11p/llava-v1.5-13b-pretrained-lbasile` (0782b79) | transformers 4.57.6 `LlavaForConditionalGeneration`, bf16 |
+| LLaVA-OneVision-1.5 4B / 8B | `lmms-lab/LLaVA-OneVision-1.5-4B-Instruct` (ae6819d), `-4B-Base` (9724845), `-8B-Instruct` (e137910), `-8B-Base` (0ee4560); fine-tuned `lbasile/LLaVA-OneVision-1.5-4B` (c52d609), `lbasile/LLaVA-OneVision-1.5-4B-8-26` (372071f), `lbasile/LLaVA-OneVision-1.5-4B-8-26-comp` (ffdfb3c); sliding-window fine-tuned `lbasile/LLaVA-OneVision-1.5-4B-0-8` (84c05f6), `-4-12` (d141546), `-8-16` (4d636fa), `-12-20` (32878c1), `-16-24` (4e23970), `-20-28` (ebf80b9), `-24-32` (f7385e4), `-28-36` (6163b2e) | the checkpoints' remote code `LLaVAOneVision1_5_ForConditionalGeneration` (`trust_remote_code`), bf16; the copies shipped with the checkpoints differ only in an import and two variable definitions |
 | InternVL2-8B | `OpenGVLab/InternVL2-8B` (6fb9ad6); pre-trained `OpenGVLab/InternVL2-Pretrain-Models/InternVL2-8B-Pretrain` (287efab) | the remote code `InternVLChatModel` of `OpenGVLab/InternVL2-8B`, also for the pre-trained weights, bf16; up to 12 image tiles |
 | Cambrian-8B | `nyu-visionx/cambrian-8b` (86557ae), `lbasile/cambrian-8b-pretrained` (c4b7d80); vision encoders CLIP ViT-L/14-336, SigLIP SO400M, DINOv2-giant, ConvNeXt-XXL | the vendored `third_party/cambrian` `CambrianLlamaForCausalLM`, fp16, with `utils/models/cambrian/patch_cambrian.py` (compatibility with transformers 4.57 and a forward that runs the Spatial Vision Aggregator on every path) |
 | Pixtral-12B (Fig. 6 reference model) | `mistral-community/pixtral-12b` (c2756cb) | transformers 4.57.6 `LlavaForConditionalGeneration`, bf16 |
@@ -100,7 +99,8 @@ used for the verification of this repository.
 
 
 The localized visual instruction tuning of the models of Sec. 4 (`lbasile/llava_7b_6_17`, `lbasile/llava_7b_6_17_complementary`,
-`lbasile/LLaVA-OneVision-1.5-4B-8-26`, `lbasile/LLaVA-OneVision-1.5-4B-8-26-comp`) and the fully fine-tuned ones (`lbasile/llava_7b` and `lbasile/LLaVA-OneVision-1.5-4B`) follow the official LLaVA-1.5 and LLaVA-OneVision-1.5 recipes and are not part of this
+`lbasile/LLaVA-OneVision-1.5-4B-8-26`, `lbasile/LLaVA-OneVision-1.5-4B-8-26-comp`, and the sliding-window runs `lbasile/llava_7b_<s>_<s+8>`
+and `lbasile/LLaVA-OneVision-1.5-4B-<s>-<s+8>`, which fine-tune 8 consecutive layers starting every 4 layers) and the fully fine-tuned ones (`lbasile/llava_7b` and `lbasile/LLaVA-OneVision-1.5-4B`) follow the official LLaVA-1.5 and LLaVA-OneVision-1.5 recipes and are not part of this
 repository.
 
 
@@ -141,6 +141,8 @@ sbatch --export=ALL,MODEL=lbasile/llava_7b slurm/logit_lens.sbatch
 sbatch --export=ALL,MODEL=lbasile/llava_7b slurm/linguistic_probing.sbatch
 sbatch --export=ALL,MODEL=lbasile/llava_7b slurm/coco_retrieval.sbatch
 sbatch --export=ALL,MODEL=lbasile/llava_7b_6_17 slurm/benchmarks.sbatch
+for s in 0 4 8 12 16 20 24; do sbatch --export=ALL,MODEL=lbasile/llava_7b_${s}_$((s + 8)) slurm/benchmarks.sbatch; done   # sliding-window runs
+for s in 0 4 8 12 16 20 24 28; do sbatch --export=ALL,MODEL=lbasile/LLaVA-OneVision-1.5-4B-${s}-$((s + 8)) slurm/benchmarks.sbatch; done
 sbatch --export=ALL,MODEL=OpenGVLab/InternVL2-8B,NO_IMAGE=1 slurm/benchmarks.sbatch   # image-reliance baseline
 sbatch --export=ALL,JOB=similarity slurm/llama90b.sbatch
 ```
@@ -162,37 +164,13 @@ once the experiments they plot have been run.
 | Fig. 2; appendix interventions (multimodal) | `fig2_interventions.py` | `slurm/interventions_multimodal.sbatch` |
 | Fig. 3; appendix label overlap, linear probe, logit lens | `fig3_probing.py` | `slurm/label_overlap.sbatch`, `slurm/logit_lens.sbatch` |
 | Fig. 4; appendix imbalance planes, linear CKA, neighborhood overlap, Llama-90B plane | `fig4_geometry.py` | `slurm/similarity_multimodal.sbatch` (extraction, CKA, overlap), then `slurm/imbalance_planes.sbatch`; `slurm/llama90b.sbatch` |
-| Fig. 5 table; appendix radar | `fig5_localized_finetuning.py` | `slurm/benchmarks.sbatch`, `slurm/compositionality.sbatch` |
+| Fig. 5 table; sliding-window plot; appendix radar | `fig5_localized_finetuning.py` | `slurm/benchmarks.sbatch`, `slurm/compositionality.sbatch` |
 | Fig. 6; appendix Llama-90B visual reliance | `fig6_visual_reliance.py` | same + `slurm/llama90b.sbatch` |
 | appendix interventions (text) | `app_interventions_text.py` | `slurm/interventions_text.sbatch` |
 | appendix text benchmarks; text benchmarks after localized fine-tuning | `app_text_benchmarks.py` | `slurm/interventions_text.sbatch`, `slurm/text_benchmarks.sbatch` |
 | appendix COCO retrieval | `app_retrieval.py` | `slurm/coco_retrieval.sbatch` |
 | appendix linguistic probing | `app_linguistic_probing.py` | `slurm/linguistic_probing.sbatch` |
 | appendix Llama-90B ablations | `app_llama90b_interventions.py` | `slurm/llama90b.sbatch` |
-
-
-## Compute and disk per figure
-
-GPU-hours in H100 units (A100 measurements divided by 1.7 for generation and extraction, by 1.2 for
-lm-eval and the probes; a GPU-hour on three GPUs counts three times). Disk is the largest space the
-experiments of a row need at the same time: checkpoints, datasets (the Hub download plus the copy the
-`datasets` library writes) and cached activations. The figures can be reproduced one after the other,
-so the total disk is the largest row, not the sum.
-
-| Figure | Experiments | H100 GPU-hours | Disk, GB |
-| --- | --- | --- | --- |
-| Fig. 2 and appendix interventions | 24 multimodal intervention sweeps (LLaVA-7B, OneVision-4B, InternVL2-8B; LLaVA-13B, OneVision-8B, Cambrian-8B in the appendix; layer skip and attention knockout; progressive and sliding) of 6 tasks x 2,000 samples per window; 12 text-only sweeps (6 models, 6 lm-eval tasks) | about 540 | about 350 |
-| Fig. 3 and appendix | label overlap (6 models, 7 datasets), linear probes and logit lens (6 models) | about 10 | about 245 |
-| Fig. 4 and appendix | information-imbalance planes, linear CKA, neighborhood overlap: 12 checkpoints x 5 datasets; the activations of up to 10,000 prompts per dataset are cached, and all three measures use the first 3,000 | about 15 | about 475 |
-| Fig. 5 and appendix radar | 6 checkpoints: 18 benchmarks at 5,000 samples, COCO and Flickr30k captioning, ARO, SugarCrepe | about 17 | about 330 |
-| Fig. 6 | 4 reference models with and without image: 16 benchmarks at 5,000 samples, ARO, SugarCrepe (plus the Fig. 5 runs) | about 42 | about 340 |
-| Appendix | COCO retrieval about 7 h, linguistic probing about 3 h, text benchmarks after localized fine-tuning about 2 h, Llama-3.2-90B about 315 h | about 325 | about 470 (Llama-90B; COCO retrieval about 225) |
-| Total | | about 950 (630 without Llama-90B) | about 475 at most |
-
-
-Most of the time is autoregressive generation with lmms-eval at batch size 1; OneVision's intervention experiments (eager attention at full image resolution) take 30 to 45 hours each. MMBench answers that are not a plain option letter go to the LLM judge, whose endpoint can dominate the time of the models that answer in sentences (OneVision-1.5-Instruct, InternVL2). About two-thirds of the dataset space is the
-`datasets` copy, which can be deleted after a run.
-
 
 
 ## Citation
